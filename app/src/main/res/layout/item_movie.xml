@@ -36,6 +36,22 @@
             android:layout_height="wrap_content"
             android:text="Giá vé: "
             android:textSize="14sp"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tvGenre"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Thể loại: "
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tvCinema"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Rạp: "
+            android:textSize="14sp"
             android:layout_marginBottom="8dp" />
 
         <LinearLayout

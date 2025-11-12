@@ -22,16 +22,16 @@ public interface GenreDao {
     List<Genre> searchByName(String search);
     
     @Query("SELECT * FROM genres WHERE " +
-           "(:hanhDong = 0 OR hanhDong = 1) AND " +
-           "(:tinhCam = 0 OR tinhCam = 1) AND " +
-           "(:haiHuoc = 0 OR haiHuoc = 1)")
+           "(:hanhDong = 0 OR hanhDong = :hanhDong) AND " +
+           "(:tinhCam = 0 OR tinhCam = :tinhCam) AND " +
+           "(:haiHuoc = 0 OR haiHuoc = :haiHuoc)")
     List<Genre> searchByCategory(boolean hanhDong, boolean tinhCam, boolean haiHuoc);
     
     @Query("SELECT * FROM genres WHERE " +
            "tenTheLoai LIKE '%' || :search || '%' AND " +
-           "(:hanhDong = 0 OR hanhDong = 1) AND " +
-           "(:tinhCam = 0 OR tinhCam = 1) AND " +
-           "(:haiHuoc = 0 OR haiHuoc = 1)")
+           "(:hanhDong = 0 OR hanhDong = :hanhDong) AND " +
+           "(:tinhCam = 0 OR tinhCam = :tinhCam) AND " +
+           "(:haiHuoc = 0 OR haiHuoc = :haiHuoc)")
     List<Genre> searchByNameAndCategory(String search, boolean hanhDong, boolean tinhCam, boolean haiHuoc);
     
     @Insert

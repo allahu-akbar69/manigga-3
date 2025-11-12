@@ -70,12 +70,20 @@ public class MainActivity extends AppCompatActivity implements MovieListFragment
             Genre genre3 = new Genre("Phim Hài", false, false, true);
             Genre genre4 = new Genre("Phim Hành Động - Tình Cảm", true, true, false);
             Genre genre5 = new Genre("Phim Hài - Hành Động", true, false, true);
+            Genre genre6 = new Genre("Phim Khoa Học Viễn Tưởng", true, false, false);
+            Genre genre7 = new Genre("Phim Kinh Dị", false, false, false);
+            Genre genre8 = new Genre("Phim Tài Liệu", false, true, false);
+            Genre genre9 = new Genre("Phim Hoạt Hình", false, false, true);
             
             database.genreDao().insert(genre1);
             database.genreDao().insert(genre2);
             database.genreDao().insert(genre3);
             database.genreDao().insert(genre4);
             database.genreDao().insert(genre5);
+            database.genreDao().insert(genre6);
+            database.genreDao().insert(genre7);
+            database.genreDao().insert(genre8);
+            database.genreDao().insert(genre9);
         }
         
         if (database.cinemaDao().getAll().isEmpty()) {
@@ -91,6 +99,19 @@ public class MainActivity extends AppCompatActivity implements MovieListFragment
     }
     
     private void showAddMovieDialog(Movie movie) {
+        // Check if genres and cinemas exist
+        List<Genre> genres = database.genreDao().getAll();
+        if (genres.isEmpty()) {
+            Toast.makeText(this, "Vui lòng thêm thể loại phim trước", Toast.LENGTH_LONG).show();
+            return;
+        }
+        
+        List<Cinema> cinemas = database.cinemaDao().getAll();
+        if (cinemas.isEmpty()) {
+            Toast.makeText(this, "Vui lòng thêm rạp chiếu trước", Toast.LENGTH_LONG).show();
+            return;
+        }
+        
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_movie, null);
         builder.setView(dialogView);
@@ -104,14 +125,12 @@ public class MainActivity extends AppCompatActivity implements MovieListFragment
         Button btnCancel = dialogView.findViewById(R.id.btnCancel);
         
         // Load genres
-        List<Genre> genres = database.genreDao().getAll();
         ArrayAdapter<Genre> genreAdapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, genres);
         genreAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerGenre.setAdapter(genreAdapter);
         
         // Load cinemas
-        List<Cinema> cinemas = database.cinemaDao().getAll();
         ArrayAdapter<Cinema> cinemaAdapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_item, cinemas);
         cinemaAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -152,15 +171,37 @@ public class MainActivity extends AppCompatActivity implements MovieListFragment
                 calendar.get(Calendar.YEAR)));
         
         btnSelectDate.setOnClickListener(v -> {
+            Calendar today = Calendar.getInstance();
+            today.set(Calendar.HOUR_OF_DAY, 0);
+            today.set(Calendar.MINUTE, 0);
+            today.set(Calendar.SECOND, 0);
+            today.set(Calendar.MILLISECOND, 0);
+            
             DatePickerDialog datePickerDialog = new DatePickerDialog(this,
                     (view, year, month, dayOfMonth) -> {
+                        Calendar selectedCal = Calendar.getInstance();
+                        selectedCal.set(year, month, dayOfMonth);
+                        selectedCal.set(Calendar.HOUR_OF_DAY, 0);
+                        selectedCal.set(Calendar.MINUTE, 0);
+                        selectedCal.set(Calendar.SECOND, 0);
+                        selectedCal.set(Calendar.MILLISECOND, 0);
+                        
+                        // Check if selected date is in the past
+                        if (selectedCal.before(today)) {
+                            Toast.makeText(this, "Ngày khởi chiếu không được trong quá khứ!", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        
                         calendar.set(year, month, dayOfMonth);
-                        selectedDate[0] = calendar.getTimeInMillis();
+                        selectedDate[0] = selectedCal.getTimeInMillis();
                         btnSelectDate.setText(String.format("%02d/%02d/%04d", dayOfMonth, month + 1, year));
                     },
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH),
                     calendar.get(Calendar.DAY_OF_MONTH));
+            
+            // Set minimum date to today
+            datePickerDialog.getDatePicker().setMinDate(today.getTimeInMillis());
             datePickerDialog.show();
         });
         
@@ -192,6 +233,25 @@ public class MainActivity extends AppCompatActivity implements MovieListFragment
                 return;
             }
             
+            // Validate date is not in the past
+            Calendar today = Calendar.getInstance();
+            today.set(Calendar.HOUR_OF_DAY, 0);
+            today.set(Calendar.MINUTE, 0);
+            today.set(Calendar.SECOND, 0);
+            today.set(Calendar.MILLISECOND, 0);
+            
+            Calendar selectedDateCal = Calendar.getInstance();
+            selectedDateCal.setTimeInMillis(selectedDate[0]);
+            selectedDateCal.set(Calendar.HOUR_OF_DAY, 0);
+            selectedDateCal.set(Calendar.MINUTE, 0);
+            selectedDateCal.set(Calendar.SECOND, 0);
+            selectedDateCal.set(Calendar.MILLISECOND, 0);
+            
+            if (selectedDateCal.before(today)) {
+                Toast.makeText(this, "Ngày khởi chiếu không được trong quá khứ!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
             Genre selectedGenre = (Genre) spinnerGenre.getSelectedItem();
             Cinema selectedCinema = (Cinema) spinnerCinema.getSelectedItem();
             
@@ -217,14 +277,8 @@ public class MainActivity extends AppCompatActivity implements MovieListFragment
                 Toast.makeText(this, "Cập nhật phim thành công", Toast.LENGTH_SHORT).show();
             }
             
-            // Refresh movie list fragment
-            viewPager.post(() -> {
-                Fragment fragment = getSupportFragmentManager()
-                        .findFragmentByTag("android:switcher:" + R.id.viewPager + ":" + 1);
-                if (fragment instanceof MovieListFragment) {
-                    ((MovieListFragment) fragment).refreshData();
-                }
-            });
+            // Refresh movie list fragment immediately
+            refreshMovieListFragment();
             
             dialog.dismiss();
         });
@@ -237,5 +291,24 @@ public class MainActivity extends AppCompatActivity implements MovieListFragment
     @Override
     public void onEditMovie(Movie movie) {
         showAddMovieDialog(movie);
+    }
+    
+    private void refreshMovieListFragment() {
+        // Refresh immediately if fragment exists
+        Fragment fragment = getSupportFragmentManager()
+                .findFragmentByTag("android:switcher:" + R.id.viewPager + ":" + 1);
+        
+        if (fragment instanceof MovieListFragment) {
+            ((MovieListFragment) fragment).refreshData();
+        } else {
+            // If fragment not found, try after a short delay (when ViewPager creates it)
+            viewPager.postDelayed(() -> {
+                Fragment f = getSupportFragmentManager()
+                        .findFragmentByTag("android:switcher:" + R.id.viewPager + ":" + 1);
+                if (f instanceof MovieListFragment) {
+                    ((MovieListFragment) f).refreshData();
+                }
+            }, 100);
+        }
     }
 }

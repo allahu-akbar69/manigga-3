@@ -10,6 +10,9 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.nigaa.R;
+import com.example.nigaa.database.AppDatabase;
+import com.example.nigaa.entity.Cinema;
+import com.example.nigaa.entity.Genre;
 import com.example.nigaa.entity.Movie;
 
 import java.text.SimpleDateFormat;
@@ -20,15 +23,17 @@ import java.util.Locale;
 public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHolder> {
     private List<Movie> movieList;
     private OnMovieClickListener listener;
+    private AppDatabase database;
     
     public interface OnMovieClickListener {
         void onEditClick(Movie movie);
         void onDeleteClick(Movie movie);
     }
     
-    public MovieAdapter(List<Movie> movieList, OnMovieClickListener listener) {
+    public MovieAdapter(List<Movie> movieList, OnMovieClickListener listener, AppDatabase database) {
         this.movieList = movieList;
         this.listener = listener;
+        this.database = database;
     }
     
     @NonNull
@@ -49,6 +54,19 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
         holder.tvReleaseDate.setText("Ngày khởi chiếu: " + sdf.format(date));
         
         holder.tvTicketPrice.setText(String.format("Giá vé: %.0f VNĐ", movie.getGiaVe()));
+        
+        // Load genre and cinema info
+        if (database != null) {
+            Genre genre = database.genreDao().getById(movie.getMaTheLoai());
+            Cinema cinema = database.cinemaDao().getById(movie.getMaRap());
+            
+            if (genre != null) {
+                holder.tvGenre.setText("Thể loại: " + genre.getTenTheLoai());
+            }
+            if (cinema != null) {
+                holder.tvCinema.setText("Rạp: " + cinema.getTenRap());
+            }
+        }
         
         holder.btnEdit.setOnClickListener(v -> {
             if (listener != null) {
@@ -77,6 +95,8 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
         TextView tvMovieName;
         TextView tvReleaseDate;
         TextView tvTicketPrice;
+        TextView tvGenre;
+        TextView tvCinema;
         ImageButton btnEdit;
         ImageButton btnDelete;
         
@@ -85,6 +105,8 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
             tvMovieName = itemView.findViewById(R.id.tvMovieName);
             tvReleaseDate = itemView.findViewById(R.id.tvReleaseDate);
             tvTicketPrice = itemView.findViewById(R.id.tvTicketPrice);
+            tvGenre = itemView.findViewById(R.id.tvGenre);
+            tvCinema = itemView.findViewById(R.id.tvCinema);
             btnEdit = itemView.findViewById(R.id.btnEdit);
             btnDelete = itemView.findViewById(R.id.btnDelete);
         }

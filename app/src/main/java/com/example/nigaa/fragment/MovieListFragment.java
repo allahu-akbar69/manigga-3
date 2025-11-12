@@ -60,8 +60,8 @@ public class MovieListFragment extends Fragment {
     }
     
     private void filterMovies() {
-        String fromYearStr = etFromYear.getText().toString();
-        String toYearStr = etToYear.getText().toString();
+        String fromYearStr = etFromYear.getText().toString().trim();
+        String toYearStr = etToYear.getText().toString().trim();
         
         List<Movie> movies;
         if (fromYearStr.isEmpty() && toYearStr.isEmpty()) {
@@ -71,29 +71,54 @@ public class MovieListFragment extends Fragment {
             long fromYear = 0;
             long toYear = Long.MAX_VALUE;
             
-            if (!fromYearStr.isEmpty()) {
-                cal.set(Calendar.YEAR, Integer.parseInt(fromYearStr));
-                cal.set(Calendar.MONTH, 0);
-                cal.set(Calendar.DAY_OF_MONTH, 1);
-                cal.set(Calendar.HOUR_OF_DAY, 0);
-                cal.set(Calendar.MINUTE, 0);
-                cal.set(Calendar.SECOND, 0);
-                cal.set(Calendar.MILLISECOND, 0);
-                fromYear = cal.getTimeInMillis();
+            try {
+                if (!fromYearStr.isEmpty()) {
+                    int year = Integer.parseInt(fromYearStr);
+                    if (year < 1900 || year > 2100) {
+                        etFromYear.setError("Năm không hợp lệ (1900-2100)");
+                        return;
+                    }
+                    cal.set(Calendar.YEAR, year);
+                    cal.set(Calendar.MONTH, 0);
+                    cal.set(Calendar.DAY_OF_MONTH, 1);
+                    cal.set(Calendar.HOUR_OF_DAY, 0);
+                    cal.set(Calendar.MINUTE, 0);
+                    cal.set(Calendar.SECOND, 0);
+                    cal.set(Calendar.MILLISECOND, 0);
+                    fromYear = cal.getTimeInMillis();
+                }
+                
+                if (!toYearStr.isEmpty()) {
+                    int year = Integer.parseInt(toYearStr);
+                    if (year < 1900 || year > 2100) {
+                        etToYear.setError("Năm không hợp lệ (1900-2100)");
+                        return;
+                    }
+                    cal.set(Calendar.YEAR, year);
+                    cal.set(Calendar.MONTH, 11);
+                    cal.set(Calendar.DAY_OF_MONTH, 31);
+                    cal.set(Calendar.HOUR_OF_DAY, 23);
+                    cal.set(Calendar.MINUTE, 59);
+                    cal.set(Calendar.SECOND, 59);
+                    cal.set(Calendar.MILLISECOND, 999);
+                    toYear = cal.getTimeInMillis();
+                }
+                
+                if (fromYear > toYear) {
+                    etToYear.setError("Năm kết thúc phải lớn hơn năm bắt đầu");
+                    return;
+                }
+                
+                movies = database.movieDao().filterByYear(fromYear, toYear);
+            } catch (NumberFormatException e) {
+                if (!fromYearStr.isEmpty()) {
+                    etFromYear.setError("Năm không hợp lệ");
+                }
+                if (!toYearStr.isEmpty()) {
+                    etToYear.setError("Năm không hợp lệ");
+                }
+                return;
             }
-            
-            if (!toYearStr.isEmpty()) {
-                cal.set(Calendar.YEAR, Integer.parseInt(toYearStr));
-                cal.set(Calendar.MONTH, 11);
-                cal.set(Calendar.DAY_OF_MONTH, 31);
-                cal.set(Calendar.HOUR_OF_DAY, 23);
-                cal.set(Calendar.MINUTE, 59);
-                cal.set(Calendar.SECOND, 59);
-                cal.set(Calendar.MILLISECOND, 999);
-                toYear = cal.getTimeInMillis();
-            }
-            
-            movies = database.movieDao().filterByYear(fromYear, toYear);
         }
         
         adapter.updateList(movies);
@@ -111,12 +136,27 @@ public class MovieListFragment extends Fragment {
             
             @Override
             public void onDeleteClick(Movie movie) {
-                database.movieDao().delete(movie);
-                loadMovies();
-                updateStatistics();
+                new android.app.AlertDialog.Builder(requireContext())
+                        .setTitle("Xác nhận xóa")
+                        .setMessage("Bạn có chắc chắn muốn xóa phim \"" + movie.getTenPhim() + "\"?")
+                        .setPositiveButton("Xóa", (dialog, which) -> {
+                            database.movieDao().delete(movie);
+                            loadMovies();
+                            updateStatistics();
+                            android.widget.Toast.makeText(requireContext(), "Đã xóa phim thành công", android.widget.Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("Hủy", null)
+                        .show();
             }
-        });
+        }, database);
         recyclerView.setAdapter(adapter);
+    }
+    
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh data when fragment becomes visible
+        refreshData();
     }
     
     private void updateStatistics() {
