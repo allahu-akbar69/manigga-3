@@ -14,6 +14,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.viewpager2.widget.ViewPager2;
 
+import java.util.List;
+
 import com.example.nigaa.adapter.ViewPagerAdapter;
 import com.example.nigaa.database.AppDatabase;
 import com.example.nigaa.entity.Cinema;
@@ -294,21 +296,41 @@ public class MainActivity extends AppCompatActivity implements MovieListFragment
     }
     
     private void refreshMovieListFragment() {
-        // Refresh immediately if fragment exists
+        // Method 1: Try to find fragment by tag (most reliable for ViewPager2)
         Fragment fragment = getSupportFragmentManager()
                 .findFragmentByTag("android:switcher:" + R.id.viewPager + ":" + 1);
         
         if (fragment instanceof MovieListFragment) {
             ((MovieListFragment) fragment).refreshData();
-        } else {
-            // If fragment not found, try after a short delay (when ViewPager creates it)
-            viewPager.postDelayed(() -> {
-                Fragment f = getSupportFragmentManager()
-                        .findFragmentByTag("android:switcher:" + R.id.viewPager + ":" + 1);
-                if (f instanceof MovieListFragment) {
-                    ((MovieListFragment) f).refreshData();
-                }
-            }, 100);
+            return;
+        }
+        
+        // Method 2: Search in all fragments (including nested fragments)
+        refreshMovieListFragmentRecursive(getSupportFragmentManager().getFragments());
+        
+        // Method 3: If fragment not created yet, refresh when it's created
+        // This ensures refresh happens even if fragment is not loaded
+        viewPager.post(() -> {
+            Fragment f = getSupportFragmentManager()
+                    .findFragmentByTag("android:switcher:" + R.id.viewPager + ":" + 1);
+            if (f instanceof MovieListFragment) {
+                ((MovieListFragment) f).refreshData();
+            }
+        });
+    }
+    
+    private void refreshMovieListFragmentRecursive(List<Fragment> fragments) {
+        if (fragments == null) return;
+        
+        for (Fragment fragment : fragments) {
+            if (fragment instanceof MovieListFragment) {
+                ((MovieListFragment) fragment).refreshData();
+                return;
+            }
+            // Check child fragments if any
+            if (fragment.getChildFragmentManager() != null) {
+                refreshMovieListFragmentRecursive(fragment.getChildFragmentManager().getFragments());
+            }
         }
     }
 }
